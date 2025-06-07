@@ -21,23 +21,21 @@ const postSchema = new mongoose.Schema({
 
 // Step 2: Define the main user schema
 const userSchema = new mongoose.Schema({
-  // _id: mongoose.Schema.Types.ObjectId,
   username: String,
   name: String,
   lastName: String,
   email: String,
   password: String,
-  profilePicture: String,
-  backgroundPicture: String,
+  profilePicture: { type: String, default: null }, // ✅ clearer
+  backgroundPicture: { type: String, default: null },
   bio: String,
   gender: String,
   location: String,
   website: String,
   followers: String,
   following: String,
-
-  // Step 3: Embed the posts schema as an array
-  posts: [postSchema]
+  posts: [postSchema] // embedded posts
 });
+
 
 module.exports = mongoose.model("User", userSchema);

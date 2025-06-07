@@ -30,6 +30,10 @@ app.use(express.json());
 
 connectToMongo();
 
+console.log("Running on:", process.env.NODE_ENV);
+console.log("Server URL:", process.env.BASE_URL || "localhost");
+
+
 // Routes
 const userRoutes = require("./routes/userRoutes");
 app.use("/api/users", userRoutes);

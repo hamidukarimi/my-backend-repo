@@ -1,30 +1,122 @@
+const fs = require('fs');
+const axios = require('axios');
+const uploadToImgBB = require('../utils/uploadToImgBB'); // ✅ import ImgBB uploader
 const User = require("../models/User");
 const jwt = require("jsonwebtoken");
+const path = require("path");
+const FormData = require("form-data");
+
+
+const registerUser = async (req, res) => {
+  try {
+    const { username, email, password } = req.body;
+    const file = req.file;
+
+    let profileUrl = '';
+    if (file) {
+      profileUrl = await uploadToImgBB(file.path, file.originalname);
+    }
+
+    const newUser = new User({
+      username,
+      email,
+      password,
+      profilePicture: profileUrl, // 👈 store imgbb URL
+    });
+
+    await newUser.save();
+    res.status(201).json({ message: "User registered!", user: newUser });
+
+  } catch (error) {
+    console.error("Register Error:", error.message);
+    res.status(500).json({ message: "Registration failed." });
+  }
+};
+
+// const insertUser = async (req, res) => {
+//   try {
+//     const userData = req.body;
+
+//     // ✅ Handle profile picture file upload
+//     let profilePicturePath = null;
+//     if (req.file) {
+//       profilePicturePath = `/uploads/profiles/${req.file.filename}`;
+//     }
+
+//     // Include uploaded profile picture path if available
+//     const newUser = await User.create({
+//       ...userData,
+//       profilePicture: profilePicturePath, // will be null if not uploaded
+//     });
+
+//     // Generate JWT token for the new user
+//     const token = jwt.sign(
+//       { id: newUser._id, email: newUser.email },
+//       process.env.JWT_SECRET,
+//       { expiresIn: "1h" }
+//     );
+
+//     // Exclude password from user object
+//     const { password: _, ...userWithoutPassword } = newUser.toObject();
+
+//     res.status(201).json({
+//       message: "✅ User created and logged in",
+//       token,
+//       user: userWithoutPassword,
+//     });
+//   } catch (err) {
+//     console.error("❌ Error inserting user:", err);
+//     res.status(500).json({ error: "❌ Failed to insert user" });
+//   }
+// };
+
+
+
+// second version for storing the profilePicture
+
+
+ // adjust path if different
 
 const insertUser = async (req, res) => {
   try {
     const userData = req.body;
 
-    // ✅ Handle profile picture file upload
-    let profilePicturePath = null;
+    // ✅ Upload to ImgBB if a profile picture was uploaded
+    let profilePictureUrl = null;
+
     if (req.file) {
-      profilePicturePath = `/uploads/profiles/${req.file.filename}`;
+      const filePath = path.join(__dirname, "..", "uploads", "profiles", req.file.filename);
+      const fileBuffer = fs.readFileSync(filePath);
+
+      const form = new FormData();
+      form.append("image", fileBuffer.toString("base64"));
+
+      const imgbbRes = await axios.post(
+        `https://api.imgbb.com/1/upload?key=${process.env.IMGBB_API_KEY}`,
+        form,
+        { headers: form.getHeaders() }
+      );
+
+      profilePictureUrl = imgbbRes.data.data.url;
+
+      // ✅ Remove the local file after upload
+      fs.unlinkSync(filePath);
     }
 
-    // Include uploaded profile picture path if available
+    // ✅ Create user with ImgBB image URL
     const newUser = await User.create({
       ...userData,
-      profilePicture: profilePicturePath, // will be null if not uploaded
+      profilePicture: profilePictureUrl, // now stores full ImgBB URL
     });
 
-    // Generate JWT token for the new user
+    // ✅ JWT Token
     const token = jwt.sign(
       { id: newUser._id, email: newUser.email },
       process.env.JWT_SECRET,
       { expiresIn: "1h" }
     );
 
-    // Exclude password from user object
+    // ✅ Exclude password in response
     const { password: _, ...userWithoutPassword } = newUser.toObject();
 
     res.status(201).json({
@@ -37,6 +129,8 @@ const insertUser = async (req, res) => {
     res.status(500).json({ error: "❌ Failed to insert user" });
   }
 };
+
+
 
 
 const signInUser = async (req, res) => {
@@ -88,6 +182,49 @@ const getUserById = async (req, res) => {
 };
 
 // POST: Add a new post to a user's embedded posts
+// const addPostToUser = async (req, res) => {
+//   try {
+//     const userId = req.user.id;
+//     const { name, description, price, category } = req.body;
+
+//     // ✅ Validate required fields
+//     if (!name || !description || !price || !category) {
+//       return res.status(400).json({ error: "All fields are required" });
+//     }
+
+//     let imagePath = null;
+//     if (req.file) {
+//       imagePath = `/uploads/${req.file.filename}`;
+//     }
+
+//     const newPost = {
+//       name,
+//       description,
+//       price,
+//       category,
+//       imagePath,
+//       likes: [] // 👈 initialize empty likes array
+//       // date will be automatically set by schema
+//     };
+
+//     const updatedUser = await User.findByIdAndUpdate(
+//       userId,
+//       { $push: { posts: newPost } },
+//       { new: true }
+//     ).lean();
+
+//     if (!updatedUser) {
+//       return res.status(404).json({ error: "User not found" });
+//     }
+
+//     res.status(200).json(updatedUser);
+//   } catch (err) {
+//     console.error("❌ Error in addPostToUser:", err);
+//     res.status(500).json({ error: "Server error" });
+//   }
+// };
+
+
 const addPostToUser = async (req, res) => {
   try {
     const userId = req.user.id;
@@ -99,8 +236,18 @@ const addPostToUser = async (req, res) => {
     }
 
     let imagePath = null;
+
+    // ✅ Upload to ImgBB instead of local storage
     if (req.file) {
-      imagePath = `/uploads/${req.file.filename}`;
+      // Call the helper
+      const url = await uploadToImgBB(req.file.path, req.file.originalname);
+      console.log("🔥 ImgBB upload returned URL:", url);
+      imagePath = url;
+
+      // Optional: delete the local temp file
+      fs.unlink(req.file.path, (err) => {
+        if (err) console.error("Failed to delete local file:", err.message);
+      });
     }
 
     const newPost = {
@@ -108,9 +255,9 @@ const addPostToUser = async (req, res) => {
       description,
       price,
       category,
-      imagePath,
-      likes: [] // 👈 initialize empty likes array
-      // date will be automatically set by schema
+      imagePath,    // will be the ImgBB URL (or null)
+      likes: [],    // initialize empty likes array
+      // date auto-set by schema
     };
 
     const updatedUser = await User.findByIdAndUpdate(
@@ -129,6 +276,7 @@ const addPostToUser = async (req, res) => {
     res.status(500).json({ error: "Server error" });
   }
 };
+
 
 
 
