@@ -12,6 +12,7 @@ const {
   updateUserPost,
   deleteUserPost,
   likePost,
+  getPostById,
 
 
   getAllUsers
@@ -52,6 +53,11 @@ router.delete("/delete-post/:postId", authenticateToken, deleteUserPost);
 
 // for like a post
 router.post("/posts/:postId/like", authenticateToken, likePost);
+
+
+
+// get a specific post by id
+router.get('/posts/:id', getPostById);
 
 
 

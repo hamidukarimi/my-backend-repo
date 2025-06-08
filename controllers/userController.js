@@ -458,6 +458,39 @@ const likePost = async (req, res) => {
 
 
 
+// get a specific post by id 
+// GET one post by ID
+
+
+const getPostById = async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    // Since posts are embedded, search users whose posts._id matches the id
+    const userWithPost = await User.findOne({ "posts._id": id });
+
+    if (!userWithPost) {
+      return res.status(404).json({ message: 'Post not found' });
+    }
+
+    // Find the post inside the posts array
+    const post = userWithPost.posts.id(id);
+
+    if (!post) {
+      return res.status(404).json({ message: 'Post not found' });
+    }
+
+    res.status(200).json(post);
+  } catch (error) {
+    console.error('Error fetching post by ID:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
+
+
+
+
 
 
 
@@ -483,5 +516,6 @@ module.exports = {
   updateUserPost,
   deleteUserPost,
   likePost,
+  getPostById,
   getAllUsers,
 };
