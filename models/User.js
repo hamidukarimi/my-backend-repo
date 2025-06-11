@@ -1,5 +1,6 @@
 const mongoose = require("mongoose");
 
+// Post schema
 const postSchema = new mongoose.Schema({
   name: { type: String, required: true, trim: true },
   description: { type: String, required: true, trim: true },
@@ -17,16 +18,23 @@ const postSchema = new mongoose.Schema({
   ]
 });
 
+// 🛒 Cart Item Schema (embedded inside user)
+const cartItemSchema = new mongoose.Schema({
+  postId: { type: mongoose.Schema.Types.ObjectId, required: true }, // reference to post
+  name: { type: String, required: true },
+  price: { type: Number, required: true },
+  quantity: { type: Number, default: 1 },
+  imagePath: { type: String }
+}, { _id: false }); // disabling _id for cart items if you prefer
 
-
-// Step 2: Define the main user schema
+// Main user schema
 const userSchema = new mongoose.Schema({
   username: String,
   name: String,
   lastName: String,
   email: String,
   password: String,
-  profilePicture: { type: String, default: null }, // ✅ clearer
+  profilePicture: { type: String, default: null },
   backgroundPicture: { type: String, default: null },
   bio: String,
   gender: String,
@@ -34,8 +42,8 @@ const userSchema = new mongoose.Schema({
   website: String,
   followers: String,
   following: String,
-  posts: [postSchema] // embedded posts
+  posts: [postSchema],     // ✅ Embedded posts
+  cart: [cartItemSchema]   // ✅ Embedded cart items
 });
-
 
 module.exports = mongoose.model("User", userSchema);

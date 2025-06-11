@@ -46,6 +46,12 @@ app.get("/", (req, res) => {
   res.send("API is running...");
 });
 
+
+// for stories
+const storyRoutes = require("./routes/storyRoutes");
+app.use("/api/stories", storyRoutes);
+
+
 // Start server
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
